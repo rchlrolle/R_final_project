@@ -1,0 +1,1084 @@
+---
+title: "`Dpylr` Package Tutorial"
+author: "Rachel Rolle"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+# 1: Overview
+
+In this tutorial, we will learn about the package `dpylr` and how to apply it to the data we want to run a Statistical Analysis on.
+
+### Learning objectives:
+
+> -   Gain a deeper understanding about `dyplr`
+>
+> -   Apply the `dyplr` functions you learned to any set of data you are working with
+>
+> -   Make inferences using Anova test results
+
+# 2: Dplyr Package
+
+The `dplyr` is commonly using to manipulate data for analysis. Given the phrase assigned with this package is "A Grammar of Data Manipulation" it is an analysts most valuable tool when processing data in R (Wickham et al.).
+
+> There are over 100 functions available, each aiding in the reconstruction of the data frame, BUT we will only using the following to analyze our set of data:
+
+```         
+ filter(): select specific rows
+
+ mutate(): create new columns or modify within the same data frame
+
+ rename(): change names of columns
+
+ group_by(): group data base on specified variable
+
+ summarize(): usually paired with a function like `group_by()`; helps achieve 
+               calculated values for the certain groups
+
+ glimpse(): shows a brief summary of a dataset. For example, displays the 
+            structure of a column such as whether it is a character or double
+
+ arrange(): reorder rows based on specified variable
+
+   desc() : paired with `arrange` function; displays column in descending order
+```
+
+![(Data Bentobox)](dplyr%20image.png)
+
+## Additional Features 2.1
+
+We will be needed a couple of additional functions to help us manipulate the data frame provided. The `separate()` function from the `tidyr` package will be useful later on. We can separate columns by specifying a delimiter function.
+
+The piping operator `%>%` is apart of the `magrittr` package and will be essential throughout the cleaning process. Instead of writing lines of code and forgetting to close parentheses `(`. This function, will simplify our code.
+
+## Sample Data 2.3
+
+We will be using the following sample data to practice the new functions we have learned.
+
+```{r}
+# Creating sample data
+student_data <- data.frame(
+  StudentID = c(1, 2, 3, 4, 5),
+  Full_Name = c("Doe, John", "Smith, Alison", "Johnson, Robert", "Brown, Evelyn", "Smith, Jamie"),
+  Math_Score = c(85, 72, 90, 65, 78),
+  Science_Score = c(92, 88, 75, 80, 85),
+  History_Score = c(78, 85, 70, 60, 92)
+  
+)
+
+```
+
+Now it is time to apply the functions. We will need to call the packages. If you have not installed them, do so now using `install.packages("name_of_package")`.
+
+```{r, echo=FALSE}
+library(dplyr)
+library(tidyverse)
+library(magrittr)
+```
+
+Using the piping operator `%>%`, we can combine all of these arguments
+
+```{r}
+
+analyzed_data <- student_data%>%
+  select(Full_Name, Math_Score, Science_Score,History_Score)%>% #did not want studentID included
+  rename(Math= Math_Score, Science= Science_Score, History = History_Score)%>% #New name is on left of '=' & old name is on the right
+  mutate(total= Math+Science+History)%>% #Using the New names now
+  separate(Full_Name, into= c("Last_name", "First_name"), sep=",")%>% #1st call the variable you want to alter, then name the columns that will separate
+  group_by(Last_name)%>%
+  summarize(avg_math=mean(Math))%>%
+  arrange(desc(avg_math))%>%
+  filter(avg_math>70)%>%
+  glimpse()
+  
+  
+  
+
+```
+
+# 3: Data Description
+
+Now that you got a taste of using these functions, it is time to implement this in the larger data frame. For this tutorial, we will clean and manipulate data from the U.S. Census Bureau website (Bureau).
+
+The data provided a sample of 2022 payroll from the government positions. The following variables were provided:
+
+> State Government position Full-time Payroll Count of Full-time Employers Part-time Payroll Count of Part-time Employers Total Payroll
+
+# 4: Exploring a Large Dataset
+
+### Where to begin?
+
+Before I clean the data and decide on a research question, it is important to explore the data to see what variables I will be dealing with. I will do this my using the following functions in the Base R package: `view()`, `nrow()`, `ncol()`, `length(names())`. These functions will assist with my exploration process and get me familiarized with the dataset I will be working with.
+
+```{r}
+#loading data in script
+library(readxl)
+salaries<- read_excel("2022_state.xlsx")
+salaries
+```
+
+```{r}
+head(salaries)  #looking a the first few rows
+nrow(salaries)/50  #how positions for 50 states
+ncol(salaries)     #how many columns
+
+```
+
+> [Note:]{.underline} Once the data was imported from Excel, the names of the columns did not transfer properly. `rename columns; starting w/ line 15` The number of rows are way too large for analyzing. The total rows are 1992 and for each state, there are about 39 variables. `condense and/or omit variables` Again, to simplify results, we will be viewing on the total payroll for all forms of employment. `filter necessary collumns and rows`
+
+## 4.1. Research Question--Cleaning Data
+
+After exploring the data, I was able to develop my research question.
+
+> **Which state government pays the highest salary?** *As I stated in the previous section, it is important to have a plan before tackling your data*. In order to find the highest salary, I will most likely use a graph for visualization and a table to look at the concrete numbers. After using visualization tools, I want to ensure that the conclusion is statistical significant and run a `one-way anova test`. Alpha will equal 0.05. Therefore, if the `p-value is less than 0.05`, it will ensure it's significance.
+
+We will be calling the `tidyverse` package to utilize both features in `dplyr`and `ggplot2`
+
+```{r, echo=FALSE}
+library(tidyverse) 
+
+```
+
+Now we will isolate the 4th & 6th columns & rows 14:1992. Then rename it to total_salaries. The `select` , `slice`, and `mutate` functions from the `dplyr` package will help us execute this task.
+
+```{r}
+salaries%>%
+  select("STATE GOVERNMENT: EMPLOYMENT AND PAYROLL DATA","...2","...4","...6")%>%
+  slice(15:1992)%>%
+  filter(...6 > 0)%>% #decided to filter out the positions that had a zero total
+  mutate(full_time = "...4",
+         part_time = "...6",
+         states = "STATE GOVERNMENT: EMPLOYMENT AND PAYROLL DATA",
+         positions = "...2"
+         )%>%
+  print()
+
+```
+
+Ran into a problem when mutating the columns. For some reason each equates the whole column to assigned title and replaces the numeric values.
+
+> Let's try this again...
+
+So `rename` specifies renaming the column. ALWAYS remember that `mutate` manipulates the rows in columns.
+
+```{r}
+
+
+payroll <- salaries %>%
+  select("STATE GOVERNMENT: EMPLOYMENT AND PAYROLL DATA", "...2", "...4", "...6") %>%
+  slice(15:1992) %>%
+  rename(
+    full_time = "...4",
+    part_time = "...6",
+    states = "STATE GOVERNMENT: EMPLOYMENT AND PAYROLL DATA",
+    positions = "...2"
+  ) %>%
+  filter(full_time != 0 ,
+    !positions%in% c(
+      "Total - All Government Employment Functions",
+      "Police Protection Total",
+      "Fire Protection Total",
+      "Education Total",
+      "Education - Elementary and Secondary Total",
+      "Education - Higher Education Total"
+    )
+  ) %>%                     #Also decided to filter out sub totals and 0s in each column
+  filter(part_time != 0,
+    !positions %in% c(
+      "Total - All Government Employment Functions",
+      "Police Protection Total",
+      "Fire Protection Total",
+      "Education Total",
+      "Education - Elementary and Secondary Total",
+      "Education - Higher Education Total"
+    )
+  )
+
+
+  print(payroll)
+
+```
+
+> After cleaning the data, now it's time to draw some inferences.
+
+```{r}
+
+join_salary <- payroll%>%
+  group_by(states)%>%
+  summarize(mean_salary = mean(n()))
+ print(join_salary)
+```
+
+> Had trouble with finding the mean because the salaries are being treated as characters not doubles
+
+```{r}
+glimpse(payroll)# full_time and part_time salaries are characters
+
+
+join_salaries <- payroll %>%
+  mutate(
+    full_time = as.numeric(full_time),
+    part_time = as.numeric(part_time),
+    total_pay = full_time + part_time
+  )%>%
+  group_by(states)%>%
+  summarize(mean_salary = mean(total_pay))
+ head(join_salaries)
+
+glimpse(join_salaries) # now full_time and part_time are doubles
+
+  
+  
+  
+```
+
+> Now it's time to time mean and median of `total_pay.` Also, add these columns together
+
+```{r}
+#To include positions we had to add full_time and part_time with payroll dataset
+  
+complete_pay <- payroll %>%
+  mutate(
+    full_time = as.numeric(full_time),
+    part_time = as.numeric(part_time),
+    total_pay = full_time + part_time
+  )
+
+ position_calc_pay <- complete_pay %>%
+  group_by(positions) %>%
+  summarize(mean_pay = mean(total_pay, na.rm = TRUE), median_pay= median(total_pay)) %>%
+  arrange(desc(mean_pay))
+ head(position_calc_pay)
+ 
+state_calc_pay <- complete_pay%>%
+  group_by(states)%>%
+  summarize(mean_pay = mean(total_pay, na.rm = TRUE), median_pay= median(total_pay)) %>%
+  arrange(desc(mean_pay))
+head(state_calc_pay)
+
+```
+
+> From the calculated `mean()`, it appears that California has the highest mean salary out of the all of the states.
+
+## 4.2. GGplot2
+
+As a part of the `tidyverse` package, we will also be utilizing the `ggplot2` to help use visual aid in our analysis.
+
+```{r}
+library(tidyverse)
+#Scatterplot of 50 States Salary
+
+ggplot(join_salaries, aes(states, mean_salary)) +
+  geom_point()+ labs(title= "                                     Means Salaries of AK-NH", x = "States", y = "Mean") +
+  coord_cartesian(xlim = c(0, 30)) #
+
+ggplot(join_salaries, aes(states, mean_salary)) +
+  geom_point()+ labs(title= "                                     Means Salaries of NH-WY", x = "States", y = "Mean") +
+  coord_cartesian(xlim = c(30, 51)) #
+
+#Boxplot Plots
+p<-ggplot(data=complete_pay, mapping = aes(x = states, y = total_pay, color= states)) +
+   geom_boxplot(show.legend = FALSE)+
+   #California looks the highest
+  labs(title= "                                     Means Salaries of Each State", x = "States", y = "Count")
+p
+```
+
+Since there are so many states, it is difficult for the end-user to see all of the points. There is a feature that we tried in the scatterplot, `coord_cartesian(xlim= c(0,30))`, allowing us to change and manipulate the length. But as shown, we needed at least two or more intervals. For a cleaner look, the `plotly` library was a great addition to our presentation.
+
+> First I assigned the plot a name. Then I called the `ggplotly()`function to convert the ggplot2 to plotly. This feature allows the end-user to interact with the data.
+
+```{r}
+library(plotly)
+ggplotly(p)
+
+```
+
+## 4.3. Using more Data to Confirm Conclusion
+
+California can be expected to have a highest mean salary because it may have the highest cost of living. Using the data from the `advisorsmith.com` website,"City Cost of Living Index Article", we can confirm this conclusion(Mak).
+
+```{r, echo=FALSE}
+  
+library(tibble)
+
+
+        var_data <- tribble(
+          ~Lat,~Lon,~City, ~Cost_of_Living_Index,
+37.08339, -88.60005, 'Paducah, KY', 85.7, 
+33.52066, -86.80249, 'Birmingham, AL', 90.7, 
+34.174820000000004, -86.84361, 'Cullman, AL', 90.5, 
+30.60353, -87.9036, 'Daphne, AL', 96.6, 
+34.60593, -86.98334, 'Decatur, AL', 88.6, 
+31.223229999999997, -85.39049, 'Dothan, AL', 86.3, 
+34.79981, -87.67725, 'Florence, AL', 86.8, 
+34.014340000000004, -86.00639, 'Gadsden, AL', 86.0, 
+34.7304, -86.58594000000001, 'Huntsville, AL', 91.3, 
+30.694359999999996, -88.04305, 'Mobile, AL', 88.3, 
+32.36681, -86.29997, 'Montgomery, AL', 88.5, 
+33.43594, -86.1058, 'Talladega, AL', 87.4, 
+33.20984, -87.56917, 'Tuscaloosa, AL', 91.0, 
+36.06258, -94.15743, 'Fayetteville, AR', 90.4, 
+35.38592, -94.39855, 'Fort Smith, AR', 84.2, 
+34.5037, -93.05518000000001, 'Hot Springs, AR', 87.3, 
+35.8423, -90.70428000000001, 'Jonesboro, AR', 85.2, 
+34.74648, -92.28959, 'Little Rock, AR', 88.0, 
+34.228429999999996, -92.0032, 'Pine Bluff, AR', 82.3, 
+35.278420000000004, -93.13379, 'Russellville, AR', 85.5, 
+35.250640000000004, -91.73625, 'Searcy, AR', 85.4, 
+38.895109999999995, -77.03636999999999, 'Washington, DC', 120.1, 
+39.15817, -75.52436999999999, 'Dover, DE', 101.3, 
+30.76213, -86.57051, 'Crestview, FL', 104.7, 
+29.21081, -81.02283, 'Daytona Beach, FL', 99.6, 
+26.621679999999998, -81.84059, 'Fort Myers, FL', 101.5, 
+29.651629999999997, -82.32483, 'Gainesville, FL', 97.3, 
+26.929779999999997, -82.04536999999999, 'Punta Gorda, FL', 100.3, 
+28.803590000000003, -82.57593, 'Homosassa Springs, FL', 95.5, 
+30.332179999999997, -81.65565, 'Jacksonville, FL', 99.0, 
+24.555239999999998, -81.78163, 'Key West, FL', 140.0, 
+30.18968, -82.63929, 'Lake City, FL', 93.6, 
+28.03947, -81.9498, 'Lakeland, FL', 96.4, 
+28.08363, -80.60811, 'Melbourne, FL', 99.3, 
+25.77427, -80.19366, 'Miami, FL', 110.1, 
+26.14234, -81.79596, 'Naples, FL', 109.4, 
+29.1872, -82.14009, 'Ocala, FL', 94.5, 
+28.53834, -81.37924, 'Orlando, FL', 101.4, 
+29.64858, -81.63758, 'Palatka, FL', 93.2, 
+30.15946, -85.65983, 'Panama City, FL', 101.9, 
+30.42131, -87.21691, 'Pensacola, FL', 97.9, 
+27.33643, -82.53065, 'Sarasota, FL', 104.4, 
+27.495590000000004, -81.44091, 'Sebring, FL', 93.1, 
+30.438259999999996, -84.28073, 'Tallahassee, FL', 96.4, 
+27.94752, -82.45843, 'Tampa, FL', 101.4, 
+28.934079999999998, -81.95994, 'The Villages, FL', 100.7, 
+27.638640000000002, -80.39726999999999, 'Vero Beach, FL', 98.9, 
+31.578509999999998, -84.15574000000001, 'Albany, GA', 87.3, 
+33.96095, -83.37794, 'Athens, GA', 95.0, 
+33.749, -84.38798, 'Atlanta, GA', 100.3, 
+33.47097, -81.97484, 'Augusta, GA', 91.6, 
+31.14995, -81.49149, 'Brunswick, GA', 94.4, 
+32.46098, -84.98770999999999, 'Columbus, GA', 88.5, 
+34.7698, -84.97022, 'Dalton, GA', 89.1, 
+34.29788, -83.82406999999999, 'Gainesville, GA', 97.0, 
+31.84688, -81.59595, 'Hinesville, GA', 90.8, 
+34.11705, -83.57239, 'Jefferson, GA', 97.4, 
+33.03929, -85.03133000000001, 'LaGrange, GA', 86.0, 
+32.84069, -83.6324, 'Macon, GA', 87.2, 
+34.25704, -85.16467, 'Rome, GA', 89.6, 
+32.08354, -81.09983000000001, 'Savannah, GA', 97.3, 
+32.44879, -81.78317, 'Statesboro, GA', 91.1, 
+30.833340000000003, -83.28031999999999, 'Valdosta, GA', 89.2, 
+32.61574, -83.62664000000001, 'Warner Robins, GA', 90.5, 
+37.727270000000004, -89.21675, 'Carbondale, IL', 83.5, 
+39.840309999999995, -88.9548, 'Decatur, IL', 84.9, 
+39.9356, -91.40987, 'Quincy, IL', 87.3, 
+39.80172, -89.64371, 'Springfield, IL', 87.5, 
+39.16533, -86.52639, 'Bloomington, IN', 92.4, 
+39.201440000000005, -85.92138, 'Columbus, IN', 89.1, 
+37.974759999999996, -87.55585, 'Evansville, IN', 87.2, 
+39.76838, -86.15804, 'Indianapolis, IN', 90.2, 
+40.558370000000004, -85.65914000000001, 'Marion, IN', 81.8, 
+39.82894, -84.89024, 'Richmond, IN', 84.2, 
+39.4667, -87.41391, 'Terre Haute, IN', 84.7, 
+38.06084, -97.92976999999999, 'Hutchinson, KS', 84.0, 
+38.97167, -95.23525, 'Lawrence, KS', 91.6, 
+39.183609999999994, -96.57167, 'Manhattan, KS', 89.6, 
+39.04833, -95.67804, 'Topeka, KS', 85.6, 
+37.692240000000005, -97.33754, 'Wichita, KS', 86.8, 
+36.990320000000004, -86.4436, 'Bowling Green, KY', 87.0, 
+37.69395, -85.85913000000001, 'Elizabethtown, KY', 88.1, 
+38.20091, -84.87328000000001, 'Frankfort, KY', 88.1, 
+37.988690000000005, -84.47771999999999, 'Lexington, KY', 91.1, 
+37.12898, -84.08326, 'London, KY', 84.6, 
+38.25424, -85.75941, 'Louisville, KY', 91.6, 
+37.77422, -87.11333, 'Owensboro, KY', 86.6, 
+37.747859999999996, -84.29465, 'Richmond, KY', 90.8, 
+31.311290000000003, -92.44514000000001, 'Alexandria, LA', 86.2, 
+30.44332, -91.18746999999999, 'Baton Rouge, LA', 91.1, 
+30.21309, -93.2044, 'Lake Charles, LA', 89.4, 
+30.50463, -90.46293, 'Hammond, LA', 89.0, 
+29.59577, -90.71953, 'Houma, LA', 89.9, 
+30.224090000000004, -92.01984, 'Lafayette, LA', 89.6, 
+32.50931, -92.1193, 'Monroe, LA', 86.5, 
+29.95465, -90.07507, 'New Orleans, LA', 92.4, 
+30.53353, -92.08151, 'Opelousas, LA', 86.1, 
+32.52515, -93.75018, 'Shreveport, LA', 85.8, 
+39.29038, -76.61219, 'Baltimore, MD', 107.0, 
+38.3004, -76.50745, 'California, MD', 104.8, 
+39.65287, -78.76252, 'Cumberland, MD', 90.9, 
+39.64176, -77.71999, 'Hagerstown, MD', 99.7, 
+38.36067, -75.59937, 'Salisbury, MD', 103.2, 
+36.64367, -93.21851, 'Branson, MO', 89.5, 
+37.30588, -89.51815, 'Cape Girardeau, MO', 88.1, 
+38.95171, -92.33407, 'Columbia, MO', 89.8, 
+37.780879999999996, -90.42179, 'Farmington, MO', 85.4, 
+38.5767, -92.17352, 'Jefferson City, MO', 86.3, 
+37.08423, -94.51328000000001, 'Joplin, MO', 85.2, 
+39.09973, -94.57857, 'Kansas City, MO', 91.6, 
+38.63162, -90.24925, 'St. Louis, MO', 89.6, 
+37.21533, -93.29824, 'Springfield, MO', 86.7, 
+30.367420000000003, -89.09281999999999, 'Gulfport, MS', 86.8, 
+31.32712, -89.29034, 'Hattiesburg, MS', 86.1, 
+32.298759999999994, -90.18481, 'Jackson, MS', 87.8, 
+31.69405, -89.13061, 'Laurel, MS', 85.9, 
+32.364309999999996, -88.70366, 'Meridian, MS', 82.0, 
+34.258070000000004, -88.70464, 'Tupelo, MS', 87.2, 
+35.60095, -82.55402, 'Asheville, NC', 103.3, 
+36.095690000000005, -79.4378, 'Burlington, NC', 91.8, 
+35.227090000000004, -80.84313, 'Charlotte, NC', 97.9, 
+35.30627, -78.6089, 'Dunn, NC', 91.4, 
+35.99403, -78.89862, 'Durham, NC', 99.8, 
+36.2946, -76.25105, 'Elizabeth City, NC', 91.1, 
+35.052659999999996, -78.87836, 'Fayetteville, NC', 89.5, 
+35.33401, -81.8651, 'Forest City, NC', 89.4, 
+35.384879999999995, -77.99277, 'Goldsboro, NC', 88.5, 
+36.07264, -79.79198000000001, 'Greensboro, NC', 91.0, 
+35.61266, -77.36635, 'Greenville, NC', 89.8, 
+35.73319, -81.3412, 'Hickory, NC', 89.8, 
+34.75405, -77.43024, 'Jacksonville, NC', 91.7, 
+34.61834, -79.01045, 'Lumberton, NC', 83.4, 
+34.72294, -76.72604, 'Morehead City, NC', 102.2, 
+36.4993, -80.60729, 'Mount Airy, NC', 89.0, 
+35.10849, -77.04411, 'New Bern, NC', 90.2, 
+36.15847, -81.14758, 'North Wilkesboro, NC', 90.5, 
+35.7721, -78.63861, 'Raleigh, NC', 99.7, 
+36.46154, -77.65415, 'Roanoke Rapids, NC', 83.1, 
+35.93821, -77.79053, 'Rocky Mount, NC', 88.3, 
+35.29235, -81.53565, 'Shelby, NC', 88.1, 
+34.22573, -77.94471, 'Wilmington, NC', 99.0, 
+35.721270000000004, -77.91554000000001, 'Wilson, NC', 86.3, 
+36.09986, -80.24422, 'Winston-Salem, NC', 91.2, 
+39.36415, -74.42305999999999, 'Atlantic City, NJ', 102.0, 
+39.27762, -74.5746, 'Ocean City, NJ', 109.5, 
+39.48623, -75.02573000000001, 'Vineland, NJ', 97.8, 
+39.329240000000006, -82.10126, 'Athens, OH', 88.5, 
+39.127109999999995, -84.51439, 'Cincinnati, OH', 92.4, 
+39.96118, -82.99879, 'Columbus, OH', 93.9, 
+39.75895, -84.19161, 'Dayton, OH', 88.4, 
+40.74255, -84.10523, 'Lima, OH', 87.2, 
+38.73174, -82.99767, 'Portsmouth, OH', 84.7, 
+40.900890000000004, -80.85675, 'Salem, OH', 86.6, 
+39.92423, -83.80882, 'Springfield, OH', 87.5, 
+39.94035, -82.01319000000001, 'Zanesville, OH', 87.6, 
+36.395590000000006, -97.87839, 'Enid, OK', 82.9, 
+34.60869, -98.39033, 'Lawton, OK', 82.8, 
+35.74788, -95.36969, 'Muskogee, OK', 81.3, 
+35.46756, -97.51643, 'Oklahoma City, OK', 87.3, 
+35.327290000000005, -96.9253, 'Shawnee, OK', 82.4, 
+36.11561, -97.05837, 'Stillwater, OK', 86.3, 
+36.15398, -95.99277, 'Tulsa, OK', 86.7, 
+39.93759, -77.6611, 'Chambersburg, PA', 95.7, 
+39.83093, -77.2311, 'Gettysburg, PA', 98.2, 
+39.952329999999996, -75.16379, 'Philadelphia, PA', 103.4, 
+39.9626, -76.72774, 'York, PA', 95.8, 
+32.77657, -79.93092, 'Charleston, SC', 101.7, 
+34.00071, -81.03481, 'Columbia, SC', 91.9, 
+34.19543, -79.76256, 'Florence, SC', 87.7, 
+34.85262, -82.39401, 'Greenville, SC', 95.0, 
+34.1954, -82.16179, 'Greenwood, SC', 88.7, 
+32.19382, -80.73816, 'Hilton Head Island, SC', 109.4, 
+33.68906, -78.88669, 'Myrtle Beach, SC', 94.7, 
+33.491820000000004, -80.85565, 'Orangeburg, SC', 85.3, 
+34.68566, -82.9532, 'Seneca, SC', 94.0, 
+34.94957, -81.93205, 'Spartanburg, SC', 91.0, 
+33.92044, -80.34147, 'Sumter, SC', 88.1, 
+35.045629999999996, -85.30968, 'Chattanooga, TN', 91.2, 
+36.52977, -87.35945, 'Clarksville, TN', 88.7, 
+35.15952, -84.87661, 'Cleveland, TN', 89.5, 
+36.16284, -85.50164000000001, 'Cookeville, TN', 90.9, 
+36.16316, -82.83099, 'Greeneville, TN', 86.5, 
+35.61452, -88.81395, 'Jackson, TN', 85.2, 
+36.31344, -82.35347, 'Johnson City, TN', 88.1, 
+36.548429999999996, -82.56182, 'Kingsport, TN', 86.0, 
+35.960640000000005, -83.92074000000001, 'Knoxville, TN', 91.6, 
+35.14953, -90.04898, 'Memphis, TN', 88.2, 
+36.21398, -83.29489000000001, 'Morristown, TN', 87.3, 
+36.165890000000005, -86.78444, 'Nashville, TN', 100.1, 
+35.86815, -83.56184, 'Sevierville, TN', 103.5, 
+35.36202, -86.20943, 'Tullahoma, TN', 88.7, 
+32.44874, -99.73314, 'Abilene, TX', 89.1, 
+32.20487, -95.85552, 'Athens, TX', 92.9, 
+30.26715, -97.74306, 'Austin, TX', 106.6, 
+30.08605, -94.10185, 'Beaumont, TX', 88.6, 
+25.90175, -97.49748000000001, 'Brownsville, TX', 87.8, 
+30.627979999999997, -96.33440999999999, 'College Station, TX', 92.3, 
+27.80058, -97.39638000000001, 'Corpus Christi, TX', 93.3, 
+32.78306, -96.80667, 'Dallas, TX', 98.5, 
+29.763279999999998, -95.36327, 'Houston, TX', 95.8, 
+30.72353, -95.55078, 'Huntsville, TX', 91.2, 
+31.11712, -97.7278, 'Killeen, TX', 88.6, 
+27.50641, -99.50754, 'Laredo, TX', 90.1, 
+32.5007, -94.74049000000001, 'Longview, TX', 88.5, 
+31.338240000000003, -94.7291, 'Lufkin, TX', 88.2, 
+32.54487, -94.36742, 'Marshall, TX', 89.9, 
+26.20341, -98.23001, 'McAllen, TX', 86.0, 
+31.603509999999996, -94.65549, 'Nacogdoches, TX', 89.6, 
+29.424120000000002, -98.49363000000001, 'San Antonio, TX', 92.7, 
+33.635659999999994, -96.60888, 'Sherman, TX', 91.3, 
+33.425129999999996, -94.04769, 'Texarkana, TX', 86.3, 
+32.351259999999996, -95.30105999999999, 'Tyler, TX', 92.8, 
+28.80527, -97.0036, 'Victoria, TX', 89.5, 
+31.549329999999998, -97.14667, 'Waco, TX', 89.5, 
+33.913709999999995, -98.49339, 'Wichita Falls, TX', 85.7, 
+37.22957, -80.41394, 'Blacksburg, VA', 94.5, 
+38.029309999999995, -78.47668, 'Charlottesville, VA', 102.1, 
+36.58597, -79.39502, 'Danville, VA', 87.1, 
+38.44957, -78.86891999999999, 'Harrisonburg, VA', 95.5, 
+37.41375, -79.14225, 'Lynchburg, VA', 93.6, 
+36.69153, -79.87254, 'Martinsville, VA', 85.0, 
+37.55376, -77.46025999999999, 'Richmond, VA', 99.2, 
+37.27097, -79.94143000000001, 'Roanoke, VA', 94.1, 
+38.14991, -79.0732, 'Staunton, VA', 94.5, 
+36.85293, -75.97799, 'Virginia Beach, VA', 99.0, 
+39.18566, -78.16333, 'Winchester, VA', 97.2, 
+37.77817, -81.18816, 'Beckley, WV', 80.0, 
+37.26984, -81.22232, 'Bluefield, WV', 81.2, 
+38.34982, -81.63261999999999, 'Charleston, WV', 83.9, 
+39.28065, -80.34453, 'Clarksburg, WV', 83.4, 
+38.41925, -82.44515, 'Huntington, WV', 84.3, 
+39.629529999999995, -79.9559, 'Morgantown, WV', 88.5, 
+39.266740000000006, -81.56151, 'Parkersburg, WV', 84.7, 
+39.33312, -82.9824, 'Chillicothe, OH', 89.8, 
+34.26783, -86.20878, 'Albertville, AL', 90.9, 
+33.65983, -85.83163, 'Anniston, AL', 85.7, 
+32.60986, -85.48078000000001, 'Auburn, AL', 91.9, 
+41.763709999999996, -72.68509, 'Hartford, CT', 104.8, 
+41.30815, -72.92815999999999, 'New Haven, CT', 107.7, 
+41.35565, -72.09952, 'New London, CT', 105.9, 
+41.05343, -73.53873, 'Stamford, CT', 119.2, 
+41.80065, -73.12122, 'Torrington, CT', 105.2, 
+42.03471, -93.61994, 'Ames, IA', 91.5, 
+42.00833, -91.64407, 'Cedar Rapids, IA', 88.1, 
+41.52364, -90.57764, 'Davenport, IA', 87.2, 
+41.60054, -93.60911, 'Des Moines, IA', 91.7, 
+42.50056, -90.66457, 'Dubuque, IA', 89.6, 
+41.66113, -91.53017, 'Iowa City, IA', 93.5, 
+42.499990000000004, -96.40031, 'Sioux City, IA', 87.1, 
+42.49276, -92.34295999999999, 'Waterloo, IA', 87.6, 
+40.4842, -88.99369, 'Bloomington, IL', 89.0, 
+40.11642, -88.24338, 'Champaign, IL', 89.0, 
+41.85003, -87.65005, 'Chicago, IL', 100.1, 
+40.12448, -87.63002, 'Danville, IL', 83.9, 
+41.12003, -87.86115, 'Kankakee, IL', 91.0, 
+41.34559, -88.84258, 'Ottawa, IL', 86.6, 
+40.69365, -89.58899, 'Peoria, IL', 86.7, 
+42.27113, -89.094, 'Rockford, IL', 87.2, 
+41.68199, -85.97667, 'Elkhart, IN', 88.5, 
+41.1306, -85.12886, 'Fort Wayne, IN', 86.8, 
+40.48643, -86.1336, 'Kokomo, IN', 84.9, 
+40.4167, -86.87529, 'Lafayette, IN', 88.7, 
+41.70754, -86.89503, 'Michigan City, IN', 87.8, 
+40.19338, -85.38636, 'Muncie, IN', 83.7, 
+41.68338, -86.25001, 'South Bend, IN', 87.2, 
+41.2381, -85.85305, 'Warsaw, IN', 92.3, 
+42.35843, -71.05977, 'Boston, MA', 132.6, 
+42.45008, -73.24538000000001, 'Pittsfield, MA', 106.4, 
+42.10148, -72.58981, 'Springfield, MA', 106.5, 
+42.26259, -71.80229, 'Worcester, MA', 113.2, 
+44.31062, -69.77949, 'Augusta, ME', 100.0, 
+44.80118, -68.77781, 'Bangor, ME', 98.0, 
+44.10035, -70.21478, 'Lewiston, ME', 99.7, 
+43.65737, -70.2589, 'Portland, ME', 113.0, 
+41.89755, -84.03716999999999, 'Adrian, MI', 90.5, 
+42.27756, -83.74088, 'Ann Arbor, MI', 99.3, 
+42.3173, -85.17815999999999, 'Battle Creek, MI', 85.9, 
+43.59447, -83.88886, 'Bay City, MI', 85.4, 
+42.33143, -83.04575, 'Detroit, MI', 93.2, 
+43.01253, -83.68746, 'Flint, MI', 85.7, 
+42.963359999999994, -85.66809, 'Grand Rapids, MI', 93.7, 
+42.78752, -86.10893, 'Holland, MI', 96.2, 
+42.245870000000004, -84.40135, 'Jackson, MI', 87.4, 
+42.291709999999995, -85.58723, 'Kalamazoo, MI', 89.3, 
+42.73253, -84.55553, 'Lansing, MI', 88.7, 
+46.54354, -87.39542, 'Marquette, MI', 91.3, 
+43.61558, -84.24721, 'Midland, MI', 87.0, 
+41.91643, -83.39771, 'Monroe, MI', 90.5, 
+43.597809999999996, -84.76751, 'Mount Pleasant, MI', 86.8, 
+43.23418, -86.24839, 'Muskegon, MI', 87.7, 
+41.82977, -86.25418, 'Niles, MI', 89.7, 
+42.9978, -84.17664, 'Owosso, MI', 84.8, 
+43.419470000000004, -83.95081, 'Saginaw, MI', 84.0, 
+44.763059999999996, -85.62063, 'Traverse City, MI', 99.6, 
+46.35802, -94.20083000000001, 'Brainerd, MN', 97.9, 
+46.78327, -92.10658000000001, 'Duluth, MN', 93.2, 
+44.294959999999996, -93.26883000000001, 'Faribault, MN', 102.3, 
+44.15906, -94.00915, 'Mankato, MN', 95.3, 
+44.97997, -93.26384, 'Minneapolis, MN', 105.4, 
+44.02163, -92.4699, 'Rochester, MN', 97.3, 
+46.87719, -96.7898, 'Fargo, ND', 91.4, 
+47.925259999999994, -97.03285, 'Grand Forks, ND', 90.7, 
+40.92501, -98.34201, 'Grand Island, NE', 88.8, 
+40.8, -96.66696, 'Lincoln, NE', 94.7, 
+41.25626, -95.94043, 'Omaha, NE', 92.9, 
+43.376740000000005, -72.34676, 'Claremont, NH', 102.3, 
+43.20814, -71.53757, 'Concord, NH', 108.3, 
+42.933690000000006, -72.27814000000001, 'Keene, NH', 102.1, 
+42.99564, -71.45479, 'Manchester, NH', 109.6, 
+40.21705, -74.74294, 'Trenton, NJ', 104.3, 
+42.65258, -73.75623, 'Albany, NY', 100.1, 
+42.93173, -76.56605, 'Auburn, NY', 93.7, 
+42.098690000000005, -75.91797, 'Binghamton, NY', 93.3, 
+42.88645, -78.87836999999999, 'Buffalo, NY', 97.3, 
+42.14285, -77.05469000000001, 'Corning, NY', 90.9, 
+42.0898, -76.80773, 'Elmira, NY', 92.5, 
+43.30952, -73.64401, 'Glens Falls, NY', 98.6, 
+42.44063, -76.49661, 'Ithaca, NY', 101.7, 
+42.097, -79.23533, 'Jamestown, NY', 91.3, 
+41.927040000000005, -73.99736, 'Kingston, NY', 106.1, 
+43.00035, -75.4999, 'New York, NY', 128.0, 
+44.69423, -75.48634, 'Ogdensburg, NY', 88.3, 
+42.07756, -78.42974, 'Olean, NY', 89.0, 
+44.699490000000004, -73.45291, 'Plattsburgh, NY', 93.7, 
+43.15478, -77.61556, 'Rochester, NY', 96.6, 
+43.048120000000004, -76.14742, 'Syracuse, NY', 95.1, 
+43.1009, -75.23266, 'Utica, NY', 94.1, 
+43.974779999999996, -75.91076, 'Watertown, NY', 96.4, 
+41.08144, -81.51901, 'Akron, OH', 89.4, 
+41.86505, -80.78981, 'Ashtabula, OH', 87.4, 
+40.79895, -81.37845, 'Canton, OH', 88.2, 
+41.4995, -81.69541, 'Cleveland, OH', 90.0, 
+41.04422, -83.64993, 'Findlay, OH', 91.1, 
+40.758390000000006, -82.51545, 'Mansfield, OH', 86.2, 
+40.58867, -83.12852, 'Marion, OH', 85.7, 
+40.48979, -81.44566999999999, 'New Philadelphia, OH', 88.9, 
+41.44894, -82.70796, 'Sandusky, OH', 90.8, 
+41.663940000000004, -83.55521, 'Toledo, OH', 87.5, 
+40.805170000000004, -81.93646, 'Wooster, OH', 95.5, 
+41.099779999999996, -80.64952, 'Youngstown, OH', 86.4, 
+40.60843, -75.49018000000001, 'Allentown, PA', 98.9, 
+40.518679999999996, -78.39474, 'Altoona, PA', 90.8, 
+41.0037, -76.45495, 'Bloomsburg, PA', 93.2, 
+41.11923, -78.76003, 'DuBois, PA', 88.2, 
+40.99954, -75.18129, 'East Stroudsburg, PA', 96.1, 
+42.129220000000004, -80.08506, 'Erie, PA', 91.8, 
+40.2737, -76.88441999999999, 'Harrisburg, PA', 95.8, 
+40.62146, -79.15253, 'Indiana, PA', 90.8, 
+40.32674, -78.92197, 'Johnstown, PA', 87.6, 
+40.03788, -76.30551, 'Lancaster, PA', 99.5, 
+40.34093, -76.41135, 'Lebanon, PA', 95.4, 
+41.64144, -80.15145, 'Meadville, PA', 88.5, 
+41.00367, -80.34701, 'New Castle, PA', 88.1, 
+40.44062, -79.99589, 'Pittsburgh, PA', 93.1, 
+40.68565, -76.1955, 'Pottsville, PA', 87.0, 
+40.33565, -75.92687, 'Reading, PA', 96.0, 
+41.40916, -75.6649, 'Scranton, PA', 91.3, 
+40.00841, -79.07808, 'Somerset, PA', 89.3, 
+40.79339, -77.86, 'State College, PA', 99.8, 
+40.862590000000004, -76.79441, 'Sunbury, PA', 88.6, 
+41.24119, -77.00108, 'Williamsport, PA', 93.4, 
+41.82399, -71.41283, 'Providence, RI', 111.5, 
+43.54997, -96.70033000000001, 'Sioux Falls, SD', 92.8, 
+44.47588, -73.21207, 'Burlington, VT', 112.8, 
+44.26193, -88.41538, 'Appleton, WI', 90.7, 
+43.457770000000004, -88.83733000000001, 'Beaver Dam, WI', 92.9, 
+44.81135, -91.49849, 'Eau Claire, WI', 91.8, 
+43.775, -88.43883000000001, 'Fond du Lac, WI', 88.0, 
+44.51916, -88.01983, 'Green Bay, WI', 91.4, 
+42.682790000000004, -89.01872, 'Janesville, WI', 89.8, 
+43.801359999999995, -91.23958, 'La Crosse, WI', 91.8, 
+43.07305, -89.40123, 'Madison, WI', 99.5, 
+44.088609999999996, -87.65758000000001, 'Manitowoc, WI', 87.8, 
+45.09998, -87.63065999999999, 'Marinette, WI', 86.6, 
+43.0389, -87.90647, 'Milwaukee, WI', 93.8, 
+44.02471, -88.54261, 'Oshkosh, WI', 89.0, 
+42.72613, -87.78285, 'Racine, WI', 90.9, 
+43.75083, -87.71453000000001, 'Sheboygan, WI', 89.7, 
+44.523579999999995, -89.57455999999999, 'Stevens Point, WI', 91.5, 
+43.194720000000004, -88.72899, 'Watertown, WI', 97.1, 
+44.959140000000005, -89.63011999999999, 'Wausau, WI', 88.9, 
+42.83362, -88.73233, 'Whitewater, WI', 97.7, 
+44.38358, -89.81735, 'Wisconsin Rapids, WI', 86.9, 
+40.41896, -80.58952, 'Weirton, WV', 82.6, 
+40.063959999999994, -80.72091, 'Wheeling, WV', 84.1, 
+35.19807, -111.65127, 'Flagstaff, AZ', 108.5, 
+34.4839, -114.32245, 'Lake Havasu City, AZ', 98.4, 
+33.44838, -112.07404, 'Phoenix, AZ', 104.3, 
+34.54002, -112.4685, 'Prescott, AZ', 104.6, 
+34.25421, -110.02983, 'Show Low, AZ', 101.9, 
+31.554540000000003, -110.30368999999999, 'Sierra Vista, AZ', 93.2, 
+32.221740000000004, -110.92648, 'Tucson, AZ', 97.7, 
+32.72532, -114.6244, 'Yuma, AZ', 94.5, 
+35.373290000000004, -119.01871000000001, 'Bakersfield, CA', 102.9, 
+39.72849, -121.83748, 'Chico, CA', 110.5, 
+38.95823, -122.62637, 'Clearlake, CA', 108.8, 
+32.792, -115.56305, 'El Centro, CA', 102.3, 
+36.74773, -119.77237, 'Fresno, CA', 105.9, 
+36.32745, -119.64568, 'Hanford, CA', 105.4, 
+34.05223, -118.24368, 'Los Angeles, CA', 140.6, 
+36.96134, -120.06071999999999, 'Madera, CA', 108.9, 
+37.30216, -120.48297, 'Merced, CA', 108.2, 
+37.6391, -120.99688, 'Modesto, CA', 112.3, 
+38.29714, -122.28553000000001, 'Napa, CA', 149.6, 
+33.95335, -117.39616000000001, 'Riverside, CA', 116.1, 
+38.58157, -121.4944, 'Sacramento, CA', 120.3, 
+36.67774, -121.6555, 'Salinas, CA', 138.3, 
+32.715709999999994, -117.16471999999999, 'San Diego, CA', 136.2, 
+37.77493, -122.41942, 'San Francisco, CA', 178.6, 
+37.33939, -121.89496000000001, 'San Jose, CA', 173.5, 
+35.28275, -120.65961999999999, 'San Luis Obispo, CA', 136.1, 
+36.97412, -122.0308, 'Santa Cruz, CA', 163.9, 
+34.95303, -120.43571999999999, 'Santa Maria, CA', 143.0, 
+38.44047, -122.71443000000001, 'Santa Rosa, CA', 141.7, 
+37.9577, -121.29078, 'Stockton, CA', 113.6, 
+39.32796, -120.18325, 'Truckee, CA', 132.8, 
+39.15017, -123.20778, 'Ukiah, CA', 128.0, 
+38.10409, -122.25663999999999, 'Vallejo, CA', 125.2, 
+34.27834, -119.29316999999999, 'Ventura, CA', 132.2, 
+36.33023, -119.29206, 'Visalia, CA', 103.6, 
+39.14045, -121.61691, 'Yuba City, CA', 108.7, 
+38.83388, -104.82136, 'Colorado Springs, CO', 102.2, 
+39.73915, -104.9847, 'Denver, CO', 112.1, 
+39.550540000000005, -107.32478, 'Glenwood Springs, CO', 127.8, 
+39.06387, -108.55065, 'Grand Junction, CO', 98.1, 
+38.25445, -104.60914, 'Pueblo, CO', 92.2, 
+32.89953, -105.96027, 'Alamogordo, NM', 85.8, 
+35.08449, -106.65113999999998, 'Albuquerque, NM', 92.9, 
+36.72806, -108.21869, 'Farmington, NM', 88.4, 
+35.528079999999996, -108.74258, 'Gallup, NM', 90.0, 
+32.70261, -103.13604000000001, 'Hobbs, NM', 87.7, 
+32.31232, -106.77833999999999, 'Las Cruces, NM', 88.8, 
+33.39437, -104.52490999999999, 'Roswell, NM', 86.3, 
+35.68698, -105.9378, 'Santa Fe, NM', 105.1, 
+39.16462, -119.7763, 'Carson City, NV', 103.0, 
+36.17497, -115.13722, 'Las Vegas, NV', 100.7, 
+39.52963, -119.8138, 'Reno, NV', 107.4, 
+35.222, -101.8313, 'Amarillo, TX', 88.2, 
+31.75872, -106.48693, 'El Paso, TX', 88.6, 
+33.57786, -101.85517, 'Lubbock, TX', 88.8, 
+31.99735, -102.07791, 'Midland, TX', 97.8, 
+31.845679999999998, -102.36764000000001, 'Odessa, TX', 92.7, 
+31.46377, -100.43704, 'San Angelo, TX', 90.7, 
+40.23384, -111.65853, 'Provo, UT', 100.9, 
+40.80207, -124.16367, 'Eureka, CA', 116.5, 
+40.58654, -122.39168000000001, 'Redding, CA', 108.7, 
+40.014990000000004, -105.27055, 'Boulder, CO', 118.7, 
+40.58526, -105.08442, 'Fort Collins, CO', 109.2, 
+40.42331, -104.70913, 'Greeley, CO', 106.1, 
+47.67768, -116.78047, 'Coeur d\'Alene, ID', 103.3, 
+43.46658, -112.03414, 'Idaho Falls, ID', 91.7, 
+46.41655, -117.01766, 'Lewiston, ID', 92.5, 
+42.8713, -112.44553, 'Pocatello, ID', 90.8, 
+42.56297, -114.46087, 'Twin Falls, ID', 91.2, 
+45.78329, -108.50068999999999, 'Billings, MT', 95.7, 
+45.67965, -111.03856, 'Bozeman, MT', 125.3, 
+47.500240000000005, -111.30081000000001, 'Great Falls, MT', 91.1, 
+46.59271, -112.03611000000001, 'Helena, MT', 104.2, 
+48.19579, -114.31291, 'Kalispell, MT', 112.7, 
+46.87215, -113.994, 'Missoula, MT', 103.4, 
+46.80833, -100.78374000000001, 'Bismarck, ND', 93.1, 
+48.23251, -101.29626999999999, 'Minot, ND', 90.7, 
+44.636509999999994, -123.10593, 'Albany, OR', 105.4, 
+44.058170000000004, -121.31531000000001, 'Bend, OR', 115.9, 
+43.3665, -124.21789, 'Coos Bay, OR', 102.0, 
+44.56457, -123.26203999999998, 'Corvallis, OR', 110.6, 
+44.05207, -123.08675, 'Eugene, OR', 108.4, 
+42.43933, -123.33067, 'Grants Pass, OR', 106.6, 
+45.84041, -119.28946, 'Hermiston, OR', 97.9, 
+42.22487, -121.78166999999999, 'Klamath Falls, OR', 97.1, 
+42.32652, -122.87558999999999, 'Medford, OR', 107.5, 
+45.52345, -122.67621000000001, 'Portland, OR', 116.5, 
+43.2165, -123.34173999999999, 'Roseburg, OR', 100.8, 
+44.9429, -123.0351, 'Salem, OR', 105.8, 
+44.08054, -103.23101, 'Rapid City, SD', 94.2, 
+41.735490000000006, -111.83438999999998, 'Logan, UT', 95.2, 
+41.223, -111.97383, 'Ogden, UT', 99.8, 
+40.76078, -111.89105, 'Salt Lake City, UT', 105.9, 
+46.97537, -123.81572, 'Aberdeen, WA', 97.6, 
+48.75955, -122.48822, 'Bellingham, WA', 111.6, 
+47.56732, -122.63264, 'Bremerton, WA', 115.0, 
+46.71621, -122.9543, 'Centralia, WA', 103.3, 
+46.21125, -119.13723, 'Kennewick, WA', 99.7, 
+46.13817, -122.93817, 'Longview, WA', 101.6, 
+47.130140000000004, -119.27808, 'Moses Lake, WA', 95.7, 
+48.42122, -122.33405, 'Mount Vernon, WA', 110.1, 
+48.29316, -122.64322, 'Oak Harbor, WA', 125.2, 
+47.03787, -122.9007, 'Olympia, WA', 110.9, 
+48.11815, -123.43073999999999, 'Port Angeles, WA', 109.1, 
+47.60621, -122.33207, 'Seattle, WA', 124.6, 
+47.215090000000004, -123.10071, 'Shelton, WA', 109.6, 
+47.659659999999995, -117.42908, 'Spokane, WA', 100.4, 
+46.06458, -118.34302, 'Walla Walla, WA', 100.9, 
+47.42346, -120.31035, 'Wenatchee, WA', 106.6, 
+46.60207, -120.5059, 'Yakima, WA', 97.5, 
+42.86663, -106.31308, 'Casper, WY', 94.2, 
+41.13998, -104.82025, 'Cheyenne, WY', 96.9, 
+20.88953, -156.47432, 'Kahului, HI', 158.5, 
+19.72991, -155.09073, 'Hilo, HI', 136.9, 
+21.30694, -157.85833, 'Honolulu, HI', 158.0, 
+64.83778000000001, -147.71639, 'Fairbanks, AK', 107.9, 
+61.218059999999994, -149.90028, 'Anchorage, AK', 110.7
+ )%>%separate(City, into= c("City", "states"), sep=",")%>%print()
+
+    
+```
+
+```{r}
+
+  var_data%>%
+  group_by(states) %>%
+  plot_geo(x = ~Lon, y = ~Lat) %>%
+  add_markers(size = ~Cost_of_Living_Index, text= ~Cost_of_Living_Index)%>%#marker size is determined by index value
+  layout(title = "Cost of Living Index by US City") 
+  
+```
+
+```{r}
+mean_cost <- var_data%>%
+  group_by(states)%>%
+  summarize(mean_cost_of_living = mean(Cost_of_Living_Index))%>%
+  arrange(desc(mean_cost_of_living))%>%print()
+
+ 
+
+```
+
+From this table, we can see that California is the second highest cost of living. This further explains why mean_salary is expected to be so high.
+
+```{r}
+plot<-ggplot(var_data, aes(y = Cost_of_Living_Index, x = states, color=states)) + 
+  geom_boxplot(show.legend = FALSE) +
+ggtitle("Cost_of_Living_Index in Each State")
+  
+library(plotly)
+ggplotly(plot)
+
+
+```
+
+# 5: Statistical Analysis
+
+> In order to confirm that our descriptive statistics has statistical significance, we will need to run tests. The common tests that can be ran in `R` are: t-test, linear regression, chi-squared test, and ANOVA.
+
+We will be running `two-way anova` test without interaction between the variables. This is an appropriate test for our data because we want to know the relationship between the dependent variable (total_pay) and two categorical independent-variables (states and positions). Once we run the anova test, we will want to look at the p-value. If it is under `.05`, then we claim that the state and position group means are different. This indicates, that where the position is located and the title of the job will have an impact on the salary.
+
+```{r}
+#Two_Way Anova Testing
+sal_aov <- aov(total_pay ~ states+positions, complete_pay)
+summary(sal_aov)
+
+#Two_Way Anova Testing w/o US
+
+w_o_US_pay <- payroll %>%
+  mutate(
+    full_time = as.numeric(full_time),
+    part_time = as.numeric(part_time),
+    total_pay = full_time + part_time
+  )%>%
+  filter(states != "US")
+w_o_US_aov <- aov(total_pay ~ states+positions, w_o_US_pay)
+summary(w_o_US_aov)
+
+
+```
+
+Both p-values are under .05, which means we can reject the null hypothesis. The states and positions will have an impact on the individuals payroll in the year 2022. Another thing to pay attention to, is the US (sum for all states) was inclusion in the first two_way testing that was ran. The residual, distance from mean, was decreased once the US was removed. This makes sense because there is a lot of variation across the states. Therefore, this variable would silence a states' influence on salary.
+
+# Conclusion
+
+From this tutorial, you can see how dplyr plays an extensive role in data analytics. As shown earlier, it would be difficult to catch under lying problems without using our `glimpse()` function. Additionally, we get a lot of information from our data by grouping our data using the `group_by()` and `summarize` function. Before using any data visualization, we knew that California was going to have one of the highest means in the group. And we discovered later on it was because of the their cost of living. Now to make things more intriguing is that Hawaii was actually the highest cost of living and California came second. That came as a surprise, because it was not even in the top 5 mean salaries. We could have discover some more data to see what jobs are more prevalent and/or lucrative in the state of Hawaii. If we refer back to our ANOVA test, the location and position tend to influence pay.
+
+# Follow-Up Resources
+
+> To dive deeper into the topics mentioned, please refer to these resources:
+
+-   `Plotly` Package:
+
+<http://127.0.0.1:21681/help/library/plotly/html/ggplotly.html>
+
+-   `Dplyr` Package:
+
+<http://127.0.0.1:21681/help/library/dplyr/doc/base.html> <http://127.0.0.1:21681/help/library/dplyr/doc/grouping.html>
+
+-   ANOVA test:
+
+<https://researchmethod.net/anova/>
+
+-   `GGplot2` Package:
+
+<http://127.0.0.1:21681/help/library/ggplot2/doc/ggplot2-in-packages.html>
+
+# Appendix A: References
+
+## Function reference
+
+### Data frame verbs
+
+### Rows
+
+Verbs that principally operate on rows.
+
+`arrange()`: Order rows using column values
+
+`distinct()`: Keep distinct/unique rows
+
+`filter()`: Keep rows that match a condition
+
+`slice()` `slice_head()` `slice_tail()` `slice_min()` `slice_max()` `slice_sample()` Subset rows using their positions
+
+### Columns
+
+Verbs that principally operate on columns.
+
+`glimpse`: Get a glimpse of your data
+
+`mutate()`: Create, modify, and delete columns
+
+`pull()`: Extract a single column
+
+`relocate()`: Change column order
+
+`rename()` `rename_with()`: Rename columns
+
+`select()`: Keep or drop columns using their names and types
+
+`Groups`: Verbs that principally operate on groups of rows.
+
+`count()` `tally()` `add_count()` `add_tally()`: Count the observations in each group
+
+`group_by()` `ungroup()`: Group by one or more variables
+
+`dplyr_by`: Per-operation grouping with
+
+`.by/by` `rowwise()`: Group input by rows
+
+`summarise()` `summarize()`: Summarise each group down to one row
+
+`reframe()`: Transform each group to an arbitrary number of rows
+
+`n()` `cur_group()` `cur_group_id()` `cur_group_rows()` `cur_column()`: Information about the "current" group or variable
+
+### Data frames
+
+Verbs that principally operate on pairs of data frames.
+
+`bind_cols()`: Bind multiple data frames by column
+
+`bind_rows()`: Bind multiple data frames by row
+
+`intersect()` `union()` `union_all()` `setdiff()` `setequal()` `symdiff()`: Set operations
+
+`inner_join()` `left_join()` `right_join()` `full_join()`: Mutating joins
+
+`nest_join()`: Nest join
+
+`semi_join()` `anti_join()`: Filtering joins
+
+`cross_join()`: Cross join
+
+`join_by()`: Join specifications
+
+`rows_insert()` `rows_append()` `rows_update()` `rows_patch()` `rows_upsert()` `rows_delete()`: Manipulate individual rows
+
+### Multiple columns
+
+Pair these functions with `mutate()`, `summarise()`, `filter()`, and `group_by()` to operate on multiple columns simultaneously.
+
+`across()` `if_any()` `if_all()`: Apply a function (or functions) across multiple columns `c_across()`: Combine values from multiple columns `pick()`: Select a subset of columns
+
+### Vector functions
+
+Unlike other dplyr functions, these functions work on individual vectors, not data frames.
+
+`between()`: Detect where values fall in a specified range
+
+`case_match()`: A general vectorised
+
+`switch()` `case_when()`: A general vectorised if-else
+
+`coalesce()`: Find the first non-missing element
+
+`consecutive_id()`: Generate a unique identifier for consecutive combinations
+
+`cumall()` `cumany()` `cummean()`: Cumulativate versions of any, all, and mean
+
+`desc()`: Descending order
+
+`if_else()`: Vectorised if-else
+
+`lag()` `lead()`: Compute lagged or leading values
+
+`n_distinct()`: Count unique combinations
+
+`na_if()`: Convert values to NA
+
+`near()`: Compare two numeric vectors
+
+`nth()` `first()` `last()`: Extract the first, last, or nth value from a vector
+
+`ntile()`: Bucket a numeric vector into n groups
+
+`order_by()`: A helper function for ordering window function output
+
+`percent_rank()` `cume_dist()`: Proportional ranking functions
+
+`recode()` `recode_factor()`: Recode values
+
+`row_number()` `min_rank()` `dense_rank()`: Integer ranking functions
+
+### Built in datasets
+
+`band_members` `band_instruments` `band_instruments2`: Band membership
+
+`starwars`: Starwars characters `storms`: Storm tracks data
+
+### Grouping helpers
+
+This (mostly) experimental family of functions are used to manipulate groups in various ways.
+
+`group_cols()`: Select grouping variables
+
+`group_map()` `group_modify()` `group_walk()`: Apply a function to each group
+
+`group_trim()`: Trim grouping structure
+
+### Superseded
+
+Superseded functions have been replaced by new approaches that we believe to be superior, but we don't want to force you to change until you're ready, so the existing functions will stay around for several years.
+
+`sample_n()` `sample_frac()`: Sample n rows from a table
+
+`top_n()` `top_frac()`: Select top (or bottom) n rows (by value)
+
+`scoped`: Operate on a selection of variables
+
+`all_vars()` `any_vars()`: Apply predicate to all variables
+
+`vars()`: Select variables `with_groups()`: Perform an operation with temporary groups
+
+### Remote tables
+
+`auto_copy()`: Copy tables to same source, if necessary
+
+`compute()` `collect()` `collapse()`: Force computation of a database query
+
+`copy_to()`: Copy a local data frame to a remote src
+
+`ident()`: Flag a character vector as SQL identifiers
+
+`explain()` `show_query()`: Explain details of a tbl
+
+`tbl()` `is.tbl()`: Create a table from a data source
+
+`sql()`: SQL escaping.
+
+# Works Cited
+
+Bureau, US Census. "2022 Census of Governments, Survey of Public Employment & Payroll Datasets & Tables." Census.gov, www.census.gov/data/datasets/2022/econ/apes/2022.html. Accessed 7 Dec. 2023.
+
+Dwi Cahyaningtyas, Rany . "RPubs - R Markdown Themes Guide: Unleash Your Creativity with Captivating Document Styles." Rpubs.com, 28 May 2023, rpubs.com/ranydc/rmarkdown_themes. Accessed 7 Dec. 2023.
+
+Mak, Adrian. "U.S. Cost of Living Index by City: Downloadable Data -- AdvisorSmith." Advisorsmith.com, 2021, advisorsmith.com/data/coli/.
+
+Sievert, Carson. Interactive Web-Based Data Visualization with R, Plotly, and Shiny. Chapman and Hall/CRC, 2020, plotly-r.com.
+
+Wickham, Hadley. Ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016, ggplot2.tidyverse.org.
+
+Wickham, Hadley , et al. Dplyr: A Grammar of Data Manipulation. 2023, CRAN.R-project.org/package=dplyr.
+
+<Https://Www.databentobox.com/2019/11/01/Dplyr-With-String/Featured.png>
+
+<https://dplyr.tidyverse.org/reference/index.html#vector-functions>
